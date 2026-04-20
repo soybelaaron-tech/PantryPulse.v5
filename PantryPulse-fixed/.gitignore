@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+venv/
+env/
+.venv/
+
+# Environment variables — never commit .env files
+.env
+.env.*
+*.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+# But do commit the example template
+!backend/.env.example
+
+# Build output
+frontend/build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test reports
+test_reports/
+
+# Memory (internal AI tool state)
+memory/
+
+# Credentials
+credentials.json
+*.pem
+*.key
+.credentials
+
+# Misc
+*.bak
+*.tmp
+.emergent/

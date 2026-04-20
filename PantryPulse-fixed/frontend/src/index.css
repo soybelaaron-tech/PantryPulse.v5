@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Work+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Work Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #FDFBF7;
+  color: #2D3728;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 42 50% 98%;
+    --foreground: 120 15% 19%;
+    --card: 0 0% 100%;
+    --card-foreground: 120 15% 19%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 120 15% 19%;
+    --primary: 156 32% 25%;
+    --primary-foreground: 42 50% 98%;
+    --secondary: 90 16% 90%;
+    --secondary-foreground: 156 32% 25%;
+    --muted: 42 20% 93%;
+    --muted-foreground: 110 12% 37%;
+    --accent: 24 100% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 52% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 14% 87%;
+    --input: 40 14% 87%;
+    --ring: 156 32% 25%;
+    --radius: 1rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer base {
+  [data-debug-wrapper="true"] {
+    display: contents !important;
+  }
+  [data-debug-wrapper="true"] > * {
+    margin-left: inherit;
+    margin-right: inherit;
+    margin-top: inherit;
+    margin-bottom: inherit;
+    padding-left: inherit;
+    padding-right: inherit;
+    padding-top: inherit;
+    padding-bottom: inherit;
+    column-gap: inherit;
+    row-gap: inherit;
+    gap: inherit;
+    border-left-width: inherit;
+    border-right-width: inherit;
+    border-top-width: inherit;
+    border-bottom-width: inherit;
+  }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
