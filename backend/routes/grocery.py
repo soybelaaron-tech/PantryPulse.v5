@@ -29,7 +29,7 @@ STRIPE_KEY = os.environ.get("STRIPE_API_KEY")
 @router.post("/grocery/suggestions")
 async def get_grocery_suggestions(req: GroceryRequest, request: Request):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage
+    
     pantry_str = ", ".join(req.pantry_ingredients) if req.pantry_ingredients else "mostly empty pantry"
     prefs = ", ".join(req.preferences) if req.preferences else "no specific preferences"
     prompt = f"""Given a pantry with: {pantry_str}
@@ -53,7 +53,7 @@ Respond in this exact JSON format:
   "meal_plan_preview": "Brief description of meals possible with these additions"
 }}"""
     chat = await create_llm_chat("grocery", "You are a smart grocery shopping assistant. Suggest practical, budget-conscious grocery items. Always respond with valid JSON only.")
-    response = await chat.send_message(UserMessage(text=prompt))
+    response = await chat.send_message(prompt)
     try:
         return parse_ai_json(response)
     except json.JSONDecodeError:
@@ -63,7 +63,7 @@ Respond in this exact JSON format:
 @router.post("/grocery/suggestions-priced")
 async def get_grocery_suggestions_priced(req: GroceryRequest, request: Request):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage
+    
     pantry_str = ", ".join(req.pantry_ingredients) if req.pantry_ingredients else "mostly empty pantry"
     prefs = ", ".join(req.preferences) if req.preferences else "no specific preferences"
     prompt = f"""Given a pantry with: {pantry_str}
@@ -87,7 +87,7 @@ Respond in this exact JSON format (no markdown):
   "meal_plan_preview": "Brief description of meals possible with these additions"
 }}"""
     chat = await create_llm_chat("grocery_p", "You are a smart grocery shopping assistant. Suggest practical items with realistic USD prices. Always respond with valid JSON only.")
-    response = await chat.send_message(UserMessage(text=prompt))
+    response = await chat.send_message(prompt)
     try:
         return parse_ai_json(response)
     except json.JSONDecodeError:
@@ -179,7 +179,7 @@ async def create_checkout(request: Request):
     if not cart_items:
         raise HTTPException(status_code=400, detail="Cart is empty")
     subtotal = sum(item.get("estimated_price", 0) for item in cart_items)
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    # Stripe removed
     host_url = str(request.base_url).rstrip("/")
     webhook_url = f"{host_url}/api/webhook/stripe"
     stripe = StripeCheckout(api_key=STRIPE_KEY, webhook_url=webhook_url)
@@ -210,7 +210,7 @@ async def create_checkout(request: Request):
 @router.get("/cart/checkout/status/{session_id}")
 async def check_checkout_status(session_id: str, request: Request):
     user = await get_current_user(request)
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    # Stripe removed
     host_url = str(request.base_url).rstrip("/")
     webhook_url = f"{host_url}/api/webhook/stripe"
     stripe = StripeCheckout(api_key=STRIPE_KEY, webhook_url=webhook_url)
@@ -242,7 +242,7 @@ async def check_checkout_status(session_id: str, request: Request):
 
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
+    # Stripe removed
     host_url = str(request.base_url).rstrip("/")
     webhook_url = f"{host_url}/api/webhook/stripe"
     stripe = StripeCheckout(api_key=STRIPE_KEY, webhook_url=webhook_url)

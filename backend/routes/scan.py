@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api", tags=["scan"])
 @router.post("/scan/photo")
 async def scan_photo(request: Request, file: UploadFile = File(...)):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage, ImageContent
+    
     data = await file.read()
     b64 = base64.b64encode(data).decode("utf-8")
     ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
@@ -30,7 +30,7 @@ async def scan_photo(request: Request, file: UploadFile = File(...)):
     except Exception as e:
         logger.warning(f"Storage upload failed: {e}")
     chat = await create_llm_chat("scan", "You are a food identification expert. Identify food items and ingredients from images. Always respond with valid JSON only.")
-    user_msg = UserMessage(
+    response = await chat.send_message(
         text="""Identify all food items and ingredients visible in this image.
 Respond in this exact JSON format:
 {
@@ -39,9 +39,8 @@ Respond in this exact JSON format:
   ],
   "confidence": "high/medium/low"
 }""",
-        file_contents=[ImageContent(image_base64=b64)]
+        image_base64=b64
     )
-    response = await chat.send_message(user_msg)
     try:
         return parse_ai_json(response)
     except json.JSONDecodeError:
@@ -93,7 +92,7 @@ Be thorough - extract every single food item you can identify, even partially vi
 @router.post("/scan/receipt")
 async def scan_receipt(request: Request, file: UploadFile = File(...)):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage, ImageContent
+    
     data = await file.read()
     b64 = base64.b64encode(data).decode("utf-8")
 
@@ -107,11 +106,7 @@ async def scan_receipt(request: Request, file: UploadFile = File(...)):
 
     # First pass with enhanced prompt
     chat = await create_llm_chat("receipt", RECEIPT_SYSTEM_PROMPT)
-    user_msg = UserMessage(
-        text=RECEIPT_USER_PROMPT,
-        file_contents=[ImageContent(image_base64=b64)]
-    )
-    response = await chat.send_message(user_msg)
+    response = await chat.send_message(text=RECEIPT_USER_PROMPT, image_base64=b64)
     try:
         result = parse_ai_json(response)
     except json.JSONDecodeError:
@@ -121,12 +116,11 @@ async def scan_receipt(request: Request, file: UploadFile = File(...)):
     if not result or not result.get("items"):
         logger.info("Receipt first pass empty, retrying with fallback prompt")
         chat2 = await create_llm_chat("receipt_retry", "You extract food items from images of receipts. Always respond with valid JSON only.")
-        fallback_msg = UserMessage(
+        response2 = await chat2.send_message(
             text="""This is a grocery receipt. List every food item you can see.
 Return JSON: {"items": [{"name": "item", "category": "other", "price": null, "quantity": null}], "store_name": null, "total": null}""",
-            file_contents=[ImageContent(image_base64=b64)]
+            image_base64=b64
         )
-        response2 = await chat2.send_message(fallback_msg)
         try:
             result = parse_ai_json(response2)
         except json.JSONDecodeError:

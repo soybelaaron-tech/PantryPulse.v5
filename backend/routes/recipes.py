@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/recipes", tags=["recipes"])
 @router.post("/generate")
 async def generate_recipes(req: RecipeGenerateRequest, request: Request):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage
+    
     ingredients_str = ", ".join(req.ingredients) if req.ingredients else "whatever is available"
     filters_str = build_recipe_filters(req, user)
     prompt = f"""Generate exactly 8 recipes using these ingredients: {ingredients_str}
@@ -51,7 +51,7 @@ For each recipe, respond in this exact JSON format (no markdown, no extra text):
 Be creative but practical. Use real cooking techniques. If some ingredients are missing, suggest minimal additions."""
 
     chat = await create_llm_chat("recipe", "You are a world-class chef and recipe creator. Generate practical, delicious recipes. Always respond with valid JSON only, no markdown formatting.")
-    response = await chat.send_message(UserMessage(text=prompt))
+    response = await chat.send_message(prompt)
     try:
         recipes = parse_ai_json(response)
     except json.JSONDecodeError:

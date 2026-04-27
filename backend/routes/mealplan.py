@@ -70,7 +70,7 @@ async def clear_meal_plan(request: Request):
 @router.post("/generate")
 async def generate_meal_plan(request: Request):
     user = await get_current_user(request)
-    from emergentintegrations.llm.chat import UserMessage
+    
     uid = user["user_id"]
     pantry_items = await db.pantry_items.find({"user_id": uid}, {"_id": 0, "name": 1}).to_list(200)
     pantry_str = ", ".join([i["name"] for i in pantry_items]) if pantry_items else "limited pantry"
@@ -110,7 +110,7 @@ For each day, provide breakfast, lunch, and dinner. Respond in this exact JSON f
   "estimated_weekly_calories": 14000
 }}"""
     chat = await create_llm_chat("mealplan", "You are a meal planning expert. Create balanced, practical weekly meal plans. Always respond with valid JSON only.")
-    response = await chat.send_message(UserMessage(text=prompt))
+    response = await chat.send_message(prompt)
     try:
         result = parse_ai_json(response)
     except json.JSONDecodeError:
