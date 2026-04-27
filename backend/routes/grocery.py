@@ -169,6 +169,8 @@ async def get_stores(request: Request):
 
 @router.post("/cart/checkout")
 async def create_checkout(request: Request):
+    import stripe as stripe_lib
+    stripe_lib.api_key = STRIPE_KEY
     user = await get_current_user(request)
     body = await request.json()
     origin_url = body.get("origin_url", "")
@@ -179,49 +181,54 @@ async def create_checkout(request: Request):
     if not cart_items:
         raise HTTPException(status_code=400, detail="Cart is empty")
     subtotal = sum(item.get("estimated_price", 0) for item in cart_items)
-    # Stripe removed
-    host_url = str(request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe = StripeCheckout(api_key=STRIPE_KEY, webhook_url=webhook_url)
     success_url = f"{origin_url}/grocery?session_id={{CHECKOUT_SESSION_ID}}&status=success"
     cancel_url = f"{origin_url}/grocery?status=cancelled"
-    checkout_req = CheckoutSessionRequest(
-        amount=SERVICE_FEE, currency="usd",
-        success_url=success_url, cancel_url=cancel_url,
+    session = stripe_lib.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": "PantryPulse Grocery Service Fee"},
+                "unit_amount": int(SERVICE_FEE * 100),
+            },
+            "quantity": 1,
+        }],
+        mode="payment",
+        success_url=success_url,
+        cancel_url=cancel_url,
         metadata={
             "user_id": user["user_id"], "store_id": store_id,
             "item_count": str(len(cart_items)), "subtotal": str(round(subtotal, 2)),
             "type": "grocery_order"
         }
     )
-    session = await stripe.create_checkout_session(checkout_req)
     await db.payment_transactions.insert_one({
         "transaction_id": f"txn_{uuid.uuid4().hex[:12]}",
-        "user_id": user["user_id"], "session_id": session.session_id,
+        "user_id": user["user_id"], "session_id": session.id,
         "amount": SERVICE_FEE, "currency": "usd", "payment_status": "initiated",
         "store_id": store_id,
         "cart_items": [{"name": i["name"], "category": i.get("category"), "estimated_price": i.get("estimated_price", 0)} for i in cart_items],
         "metadata": {"item_count": len(cart_items), "subtotal": round(subtotal, 2)},
         "created_at": datetime.now(timezone.utc).isoformat()
     })
-    return {"url": session.url, "session_id": session.session_id}
+    return {"url": session.url, "session_id": session.id}
 
 
 @router.get("/cart/checkout/status/{session_id}")
 async def check_checkout_status(session_id: str, request: Request):
+    import stripe as stripe_lib
+    stripe_lib.api_key = STRIPE_KEY
     user = await get_current_user(request)
-    # Stripe removed
-    host_url = str(request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe = StripeCheckout(api_key=STRIPE_KEY, webhook_url=webhook_url)
-    status = await stripe.get_checkout_status(session_id)
+    session = stripe_lib.checkout.Session.retrieve(session_id)
+    payment_status = session.payment_status
+    status = session.status
     txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     if txn and txn.get("payment_status") != "paid":
         await db.payment_transactions.update_one(
             {"session_id": session_id},
-            {"$set": {"payment_status": status.payment_status, "status": status.status, "updated_at": datetime.now(timezone.utc).isoformat()}}
+            {"$set": {"payment_status": payment_status, "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}}
         )
-        if status.payment_status == "paid":
+        if payment_status == "paid":
             for item in txn.get("cart_items", []):
                 await db.pantry_items.insert_one({
                     "item_id": f"item_{uuid.uuid4().hex[:12]}",
@@ -233,10 +240,10 @@ async def check_checkout_status(session_id: str, request: Request):
                 })
             await db.cart_items.delete_many({"user_id": user["user_id"]})
     return {
-        "status": status.status, "payment_status": status.payment_status,
-        "amount_total": status.amount_total, "currency": status.currency,
+        "status": status, "payment_status": payment_status,
+        "amount_total": session.amount_total, "currency": session.currency,
         "store_id": txn.get("store_id") if txn else None,
-        "items_added": len(txn.get("cart_items", [])) if txn and status.payment_status == "paid" else 0
+        "items_added": len(txn.get("cart_items", [])) if txn and payment_status == "paid" else 0
     }
 
 
